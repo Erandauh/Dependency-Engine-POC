@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.example.developer.local.SQLLite.localDeltaIndex;
-import static org.example.remote.server.AWSNeptune.globalIndex;
+import static org.example.remote.server.AWSNeptuneRedisView.globalIndex;
 
 public class LocalProxyEngine {
 

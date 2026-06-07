@@ -5,10 +5,9 @@ import org.example.model.ReferenceLocation;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.StringReader;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static org.example.remote.server.AWSNeptune.globalIndex;
+import static org.example.remote.server.AWSNeptuneRedisView.globalIndex;
 
 public class CsvDataIngestor {
 

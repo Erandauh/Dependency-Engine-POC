@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /*
     This represents the Graph DB
  */
-public class AWSNeptune {
+public class AWSNeptuneRedisView {
 
     public static Map<String, List<ReferenceLocation>> globalIndex = new ConcurrentHashMap<>();
 }
