@@ -1,0 +1,89 @@
+@startuml
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+
+box "CI-CD & Cloud Ingestion Pipeline" #LightBlue
+actor "Developer Git Push" as git
+participant "CI-CD\nPipeline" as cicd
+database "S3 Bucket\n(CSV Storage)" as s3
+queue "Ingestion SQS\nQueue" as sqs
+participant "AWS Fargate\nWorker" as fargate
+database "AWS Neptune\n(Graph DB)" as neptune
+end box
+
+box "Event & Cache Distribution" #LightYellow
+queue "Event Queue\n(Invalidation)" as ev_queue
+database "Redis Cache\nCluster" as redis
+end box
+
+box "Developer Edge (Local Environment)" #LightGreen
+participant "Local Proxy Engine\n(GraalVM Native)" as lpe
+database "SQLite\n(In-Memory DB)" as sqlite
+participant "Local File\nWatcher" as watcher
+actor "Developer IDE /\nAI Copilot" as ide
+end box
+
+== The Global Baseline (globalIndex) Flow ==
+
+git -> cicd : Merge to main branch
+activate cicd
+cicd -> s3 : [1] Upload massive millions-of-rows CSV files
+activate s3
+s3 -> sqs : [2] Push event notification
+deactivate s3
+activate sqs
+
+fargate -> sqs : [3] Continuously poll row data sequentially
+activate fargate
+deactivate sqs
+fargate -> fargate : Convert row CSV content to graph nodes
+fargate -> neptune : [4] Persist the graphed data
+activate neptune
+deactivate fargate
+deactivate neptune
+
+cicd -> ev_queue : [5] Publish new build event\n(Contains structural code-changes)
+deactivate cicd
+activate ev_queue
+
+ev_queue -> lpe : [6] Consume and analyze event payload
+activate lpe
+deactivate ev_queue
+lpe -> redis : [7] Invalidate ONLY respective areas of current cache
+activate redis
+deactivate lpe
+deactivate redis
+
+== The Local Delta (localDeltaIndex) Flow ==
+
+ide -> watcher : [b] Detect local file changes (OS Level)
+activate watcher
+watcher -> lpe : [c] Trigger notification to LPE
+deactivate watcher
+activate lpe
+
+lpe -> lpe : [d] Parse *only* single modified file\nto extract symbol line numbers
+lpe -> sqlite : Insert updates into In-Memory SQLite DB
+activate sqlite
+deactivate sqlite
+
+lpe -> redis : [e] Pull down global baselines\n(Reads local git config to identify modules)
+activate redis
+
+alt Cache Miss / Stale Data Detect
+    redis -> neptune : [f] LPE forces generation of cached view\nfrom AWS Neptune
+    activate neptune
+    neptune --> redis : Populate segmented cache model
+    deactivate neptune
+end
+
+redis --> lpe : Return developer-specific cached view
+deactivate redis
+
+ide -> lpe : [a/h] MCP Request (e.g., findAllReferences)
+lpe -> lpe : [g] Bridge the gap between Local Delta vs Global Baseline
+lpe -> lpe : Convert bloated JSON to optimized Markdown layout
+lpe --> ide : Return optimized markdown text to Plugin
+deactivate lpe
+
+@enduml
